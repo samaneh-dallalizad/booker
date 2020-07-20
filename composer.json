@@ -1,0 +1,12 @@
+{
+    "name": "samaneh/php-test-1",
+    "authors": [
+        {
+            "name": "Samaneh Dallalizad",
+            "email": "samaneh.dallalizad@gmail.com"
+        }
+    ],
+    "require": {
+        "bugsnag/bugsnag": "^3.0"
+    }
+}
