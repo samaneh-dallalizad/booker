@@ -1,9 +1,10 @@
 <?php
 require __DIR__ . '/vendor/autoload.php';
+$bugsnag = Bugsnag\Client::make();
 
 function warning(string $message, array $context = []) {
     // this will handle the logging towards Bugsnag
-    $bugsnag = Bugsnag\Client::make('YOUR-API-KEY-HERE');
+    global $bugsnag;
     $bugsnag->notifyError($context['name'] ?? 'unknown', $message);
     return $message;    
 }
@@ -28,7 +29,7 @@ class BookingService
 
         // trigger the TrivagoHandler to send a create request to Trivago
         if($Booking->referral_provider === "Trivago" )
-            return $this->trivagoHandler->creation($Booking);
+            return $this->trivagoHandler->create($Booking);
         return false;
     }
 
@@ -61,11 +62,27 @@ class TrivagoHandler
 
     /*post api  */
 
-    public function create(Booking $param){
+    protected $client;
 
-        $client = new \GuzzleHttp\Client();
+    public function __construct()
+    {
+        $client = new \GuzzleHttp\Client(
+            [
+                'defaults' => [
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                        'X-Trv-Ana-Key' => $this->apiKey
+                    ]
+                ]
+            ]
+        );
+    }
+
+    public function create(Booking $param){
+//        if($param->referral_provider !== "Trivago" )
+//            return false;
         try {
-            $response = $client->post($this->endpoint, [
+            $response = $this->client->post($this->endpoint, [
                 'json' => [
                     "trv_reference" => $param->trv_reference,
                     "advertiser_id" => $param->advertiser_id,
@@ -79,29 +96,22 @@ class TrivagoHandler
                     "booking_date" => $param->booking_date,
                     "booking_date_format" => $param->booking_date_format,
                     "number_of_rooms" => $param->number_of_rooms
-                ],
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'X-Trv-Ana-Key' => $this->apiKey
                 ]
             ]);
             return true;
         } catch (\GuzzleHttp\Exception\ServerException | \GuzzleHttp\Exception\ClientException $e) {
             $resp_obj = json_decode($e->getResponse()->getBody());
-            warning($resp_obj->errorMessage, ['name'=> 'create']);
+            error_log(warning($resp_obj->errorMessage, ['name'=> 'create']));
         } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-            warning($e->getMessage(), ['name'=> 'GuzzleError']);
-            echo $e->getMessage() . PHP_EOL;
+            error_log(warning($e->getMessage(), ['name'=> 'GuzzleError']));
         }
         return false;
     }
 
     /* delete api */
     public function cancel(Booking $param ){
-
-        $client = new \GuzzleHttp\Client();
         try {
-            $response = $client->delete($this->endpoint, [
+            $response = $this->client->delete($this->endpoint, [
                 'json' => [
                     "trv_reference" => $param->trv_reference,
                     "advertiser_id" => $param->advertiser_id,
@@ -119,32 +129,20 @@ class TrivagoHandler
                     "refund_ratio" => $param->refund_ratio,
                     "cancellation_date" => $param->cancellation_date,
                     "cancellation_date_format" => $param->cancellation_date_format
-                ],
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'X-Trv-Ana-Key' => $this->apiKey
                 ]
             ]);
             return true;
 
         } catch (\GuzzleHttp\Exception\ServerException | \GuzzleHttp\Exception\ClientException $e) {
             $resp_obj = json_decode($e->getResponse()->getBody());
-            warning($resp_obj->errorMessage, ['name' => 'cancel']);
+            error_log(warning($resp_obj->errorMessage, ['name' => 'cancel']));
         }
         catch (\GuzzleHttp\Exception\GuzzleException $e) {
-            warning($e->getMessage(), ['name'=> 'GuzzleError']);
-            echo $e->getMessage() . PHP_EOL;
+            error_log(warning($e->getMessage(), ['name'=> 'GuzzleError']));
         }
         return false;
     }
 }
-
-
-
-
-
-
-
 
 
 
